@@ -9,8 +9,9 @@ const Extra = require("telegraf/extra");
 //Import Markup from de telegraf framework to create buttons
 const Markup = require("telegraf/markup");
 const { callbackButton } = require("telegraf/markup");
+const config = require("./config.json")
 //Create a new instance of the telegraf framework
-const bot = new Telegraf ("991755978:AAGXRa9jacrnGZy5Wird22lqm0QiaXrJQXc");
+const bot = new Telegraf (config.token);
 
 //Class Shelter
 class Shelter{
