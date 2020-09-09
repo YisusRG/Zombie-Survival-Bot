@@ -36,6 +36,19 @@ class Shelter{
     state(id){
         bot.telegram.sendMessage(id, `The shelter has:\n\n${this.food} food units.\n${this.resistence} of resistence.\n${this.energetics} energetics drinks units.`);
     }
+
+    survivors_working(leader, builder, vigilant, explorer, traitor, refugees){
+        leader.working = false;
+        builder.working = false;
+        vigilant.working = false;
+        explorer.working = false;
+        traitor.working = false;
+        refugees.forEach(
+            function(refugee){
+                refugee.working = false;
+            }
+        );
+    }
 }
 
 //The main class to create the other roles in the game
@@ -48,6 +61,7 @@ class Role{
         this.food = food;
         this.energy = energy;
         this.working = false;
+        this.alive = true;
     }
 
     return_rol(ctx){
@@ -58,16 +72,53 @@ class Role{
         bot.telegram.sendMessage(id, `${this.role}:\nLife: ${this.life}\nFood: ${this.food}\nEnergy: ${this.energy}`);
     }
 
-    eat(id, shelter){
-        bot.telegram.sendMessage(id, "You have decided to eat today to recharge your batteries");
-        this.food+= 10;
-        this.energy+= 5;
-        shelter.food-= 10;
+    eat(ctx, shelter, role){
+        if((this.food < 50) || (this.energy < 50)){
+            ctx.telegram.sendMessage(this.id, "You have decided to eat today to recharge your batteries");
+            if((this.food + 10) <= 50){
+                shelter.food-= 10;
+                this.food+= 10;
+            }
+            else{
+                shelter.food-= (50 - this.food)
+                this.food+= (50 - this.food);
+            }
+        }else{
+            ctx.telegram.sendMessage(this.id, "You are already full of food, better do another activity");
+            role.tasks(ctx);
+        }
     }
 
-    sleep(id){
-        bot.telegram.sendMessage(id, "You have decided to rest today to recover");
-        this.energy+=10;
+    sleep(ctx, role){
+        if((this.energy < 50 ) || (this.energy < 50)){
+            ctx.telegram.sendMessage(this.id, "You have decided to rest today to recover");
+            if((this.energy + 10) <= 50){
+                this.energy+=10;
+            }
+            else{
+                this.energy+= (50 - this.energy);
+            }
+        }
+        else{
+            ctx.telegram.sendMessage(this.id, "you have the energy to the maxium, better take advantage of it in another task");
+            role.tasks(ctx);
+        }
+    }
+
+    still_alive(ctx, role){
+        //Check if the role still alive
+        if(role.life > 0){
+            role.tasks(ctx);
+        
+        }
+        //else
+        else{
+            //Send a messaged that has died
+            if(role.alive){
+                ctx.reply(`@${role.name} has died`);
+                role.alive = false;
+            }
+        }
     }
 
 }
@@ -93,23 +144,29 @@ class Leader extends Role{
         explorer.state(this.id);
     }
 
-    eat(shelter){
-        super.eat(this.id, shelter);
+    eat(ctx, shelter, role){
+        super.eat(ctx, shelter, role);
     }
 
-    sleep(){
-        super.sleep(this.id);
+    sleep(ctx, role){
+        super.sleep(ctx, role);
     }
+
+    still_alive(ctx, role){
+        super.still_alive(ctx, role);
+    } 
     //This method execute the job of the leader
-    stand_guard(shelter){
+    stand_guard(ctx, shelter, leader){
         if(((shelter.energetics >= 10) && (this.food >= 15)) && (this.energy >= 15)){
-            bot.telegram.sendMessage(this.id, "You have decided to stand guard to be aware of what happens in the shelter at night.\n\nIf you stand guard you will have more chances to discover the traitor on the spot");
+            ctx.telegram.sendMessage(this.id, "You have decided to stand guard to be aware of what happens in the shelter at night.\n\nIf you stand guard you will have more chances to discover the traitor on the spot");
             this.food -= 15;
             this.energy -= 15;
             this.working = true;
             shelter.energetics -= 10;
+            this.working = true
         }else{
-            bot.telegram.sendMessage(this.id, "The shelter does not have enough energy drinks for you to stand your guard");
+            ctx.telegram.sendMessage(this.id, "The shelter does not have enough energy drinks for you to stand your guard");
+            leader.tasks(ctx);
         }
     }
 
@@ -137,12 +194,16 @@ class Builder extends Role{
         super.state(id);
     }
 
-    eat(shelter){
-        super.eat(this.id, shelter);
+    eat(ctx, shelter, role){
+        super.eat(ctx, shelter, role);
     }
 
-    sleep(){
-        super.sleep(this.id);
+    sleep(ctx, role){
+        super.sleep(ctx, role);
+    }
+
+    still_alive(ctx, role){
+        super.still_alive(ctx, role);
     }
 
     build(ctx){
@@ -175,13 +236,17 @@ class Vigilant extends Role{
         super.state(id);
     }
 
-    eat(shelter){
-        super.eat(this.id, shelter);
+    eat(ctx, shelter, role){
+        super.eat(ctx, shelter, role);
     }
 
-    sleep(){
-        super.sleep(this.id);
+    sleep(ctx, role){
+        super.sleep(ctx, role);
         this.mental_health+=20;
+    }
+
+    still_alive(ctx, role){
+        super.still_alive(ctx, role);
     }
 
     watch(ctx){
@@ -215,12 +280,16 @@ class Explorer extends Role{
         super.state(id);
     }
 
-    eat(shelter){
-        super.state(this.id, shelter);
+    eat(ctx, shelter, role){
+        super.state(ctx, shelter, role);
     }
 
-    sleep(){
-        super.sleep(this.id);
+    sleep(ctx, role){
+        super.sleep(ctx, role);
+    }
+
+    still_alive(ctx, role){
+        super.still_alive(ctx, role);
     }
 
     explore(ctx){
@@ -259,12 +328,16 @@ class Traitor extends Role{
         super.state(this.id);
     }
 
-    eat(shelter){
-        super.eat(this.id, shelter);
+    eat(ctx, shelter, role){
+        super.eat(ctx, shelter, role);
     }
 
-    sleep(){
-        super.sleep(this.id);
+    sleep(ctx, role){
+        super.sleep(ctx, role);
+    }
+
+    still_alive(ctx, role){
+        super.still_alive(ctx, role);
     }
 
     work(ctx, builder, vigilant, explorer){
@@ -318,12 +391,16 @@ class Refugee extends Role{
         super.state(this.id);
     }
 
-    eat(shelter){
-        super.eat(this.id, shelter);
+    eat(ctx, shelter, role){
+        super.eat(ctx, shelter, role);
     }
 
-    sleep(){
-        super.sleep(this.id);
+    sleep(ctx, role){
+        super.sleep(ctx, role);
+    }
+
+    still_alive(ctx, role){
+        super.still_alive(ctx, role);
     }
 
     work(ctx, shelter, builder, vigilant, explorer){
@@ -333,17 +410,20 @@ class Refugee extends Role{
         if (this.job  == 1) {
             ctx.telegram.sendMessage(this.id, "Today you were assigned the job of a laborer, so you helped the builder with the shelter's defenses");
             ctx.telegram.sendMessage(builder.id, `@${this.name} has helped you with your work today so the shelter's defenses increased a bit`);
-            shelter.resistence+=10
+            shelter.resistence+=10;
+            this.working = true;
         }
         else if (this.job == 2){
             ctx.telegram.sendMessage(this.id, "Today you were assigned the job of guard, therefore you went to help the lookout with part of his guards");
             ctx.telegram.sendMessage(vigilant.id, `@${this.name} has helped you with part of your guards so you have not consumed so many energetic drinks`);
             shelter.energetics+=5;
+            this.working = true;
         }
         else{
             ctx.telegram.sendMessage(this.id, "Today you were assigned the job of a food collector, so you went around with the explorer to collect as much as you can");
             ctx.telegram.sendMessage(explorer.id, `@${this.name} has helped you with your search for resources today so the food at the shelter increased a bit`);
             shelter.food+=15;
+            this.working = true;
         }
     }
 
@@ -359,7 +439,7 @@ class Refugee extends Role{
 
 class Zombies{
     constructor(){
-        this.quantity = random_number(20, 50)
+        this.quantity = random_number(20, 50);
         this.attack_force = random_number(1, 4);
         this.horde_days = random_number(4, 10);
     }

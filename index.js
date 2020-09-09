@@ -94,18 +94,16 @@ function actions(ctx){
     }else{
         ctx.reply(`The horde will arrive in ${zombies.horde_days} days`);
     }
-
-    leader.tasks(ctx, shelter, leader, builder, vigilant, explorer);
-    builder.tasks(ctx, shelter, builder, zombies);
-    vigilant.tasks(ctx, ctx.chat.id, shelter, vigilant, zombies);
-    explorer.tasks(ctx, shelter, builder, explorer);
-    traitor.tasks(ctx, ctx.chat.id, shelter, leader, builder, vigilant, explorer, traitor);
+    leader.still_alive(ctx, leader);
+    builder.still_alive(ctx, builder);
+    vigilant.still_alive(ctx, vigilant);
+    explorer.still_alive(ctx, explorer);
+    traitor.still_alive(ctx, traitor);
     refugees.forEach(
         function(refugee){
-            refugee.tasks(ctx, shelter, builder, vigilant, explorer, refugee);
+            refugee.still_alive(ctx, refugee);
         }
     );
-
 }
 
 //This function end the day and call the function actions every 5 minutes
@@ -122,18 +120,10 @@ function play(ctx){
                 ctx.reply(`Assault report:\nYou lost:\n${Math.floor(shelter.food/=2)} food units\n${Math.floor(shelter.energetics/=2)} units of energetic drinks and\n${Math.floor(builder.materials/=2)} units of building materials`);
             }
         }
-        leader.working = false;
-        builder.working = false;
-        vigilant.working = false;
-        explorer.working = false;
-        traitor.working = false;
-        refugees.forEach(
-            function(refugee){
-                refugee.working = false;
-            }
-        );
+        
+        shelter.survivors_working(leader, builder, vigilant, explorer, traitor, refugees)
         actions(ctx);
-    }, 300000);
+    }, 180000);
 }
 
 
@@ -314,28 +304,28 @@ bot.action("states-leader", (ctx) => {
 
 bot.action("eat-leader", (ctx) => {
     ctx.deleteMessage();
-    leader.eat(shelter);
+    leader.eat(ctx, shelter, leader);
 });
 
 bot.action("sleep-leader", (ctx) => {
     ctx.deleteMessage();
-    leader.sleep();
+    leader.sleep(ctx, leader);
 });
 
 bot.action("guard-leader", (ctx) => {
     ctx.deleteMessage();
-    leader.stand_guard(shelter);
+    leader.stand_guard(ctx, shelter, leader);
 });
 
 //-------------------------------------Builder callbacks-------------------------------------------
 bot.action("eat-builder", (ctx) => {
     ctx.deleteMessage();
-    builder.eat(shelter);
+    builder.eat(ctx, shelter, builder);
 });
 
 bot.action("sleep-builder", (ctx) => {
     ctx.deleteMessage();
-    builder.sleep();
+    builder.sleep(ctx, builder);
 });
 
 bot.action("build", (ctx) => {
@@ -360,6 +350,7 @@ bot.action("walls", (ctx) => {
         builder.energy-=20;
         builder.material-=30;
         shelter.resistence+=50;
+        builder.working = true;
     }else{
         ctx.deleteMessage();
         ctx.telegram.sendMessage(builder.id, "You don't have enough energy, food or material for this structure, choose another, take a break or talk to the explorer to get materials");
@@ -375,6 +366,7 @@ bot.action("barricades", (ctx) => {
         builder.energy-=15;
         builder.material-=20;
         shelter.resistence+=30;
+        builder.working = true;
     }else{
         ctx.deleteMessage();
         ctx.telegram.sendMessage(builder.id, "You don't have enough energy, food or material for this structure, choose another, take a break or talk to the explorer to get materials");
@@ -390,6 +382,7 @@ bot.action("fences", (ctx) => {
         builder.energy-=10;
         builder.material-=10;
         shelter.resistence+=10;
+        builder.working = true;
     }else{
         ctx.deleteMessage();
         ctx.telegram.sendMessage(builder.id, "You don't have enough energy, food or material for this structure, choose another, take a break or talk to the explorer to get materials");
@@ -413,6 +406,7 @@ bot.action("mines", (ctx) => {
         builder.food-=20;
         builder.energy-=20;
         builder.material-=30;
+        builder.working = true;
         zombies.quantity-=20;
     }else{
         ctx.deleteMessage();
@@ -428,6 +422,7 @@ bot.action("wire", (ctx) => {
         builder.food-=10;
         builder.energy-=10;
         builder.material-=20;
+        builder.working = true;
         zombies.quantity-=10;
     }else{
         ctx.deleteMessage();
@@ -438,12 +433,12 @@ bot.action("wire", (ctx) => {
 //------------------------------------Vigilant callback---------------------------------------------
 bot.action("eat-vigilant", (ctx) => {
     ctx.deleteMessage();
-    vigilant.eat(shelter);
+    vigilant.eat(ctx, shelter, vigilant);
 });
 
-bot.action("sleep-builder", (ctx) => {
+bot.action("sleep-vigilant", (ctx) => {
     ctx.deleteMessage();
-    vigilant.sleep();
+    vigilant.sleep(ctx, vigilant);
 });
 
 bot.action("watch", (ctx) => {
@@ -458,6 +453,7 @@ bot.action("daytime", (ctx) => {
         vigilant.food-=10;
         vigilant.energy-=10;
         vigilant.mental_health-=10;
+        vigilant.working = true;
         shelter.energetics-=10
         ctx.telegram.sendMessage(ChatId, "There are: " + zombies.quantity - random_number(15, 25) + " zombies in the horde");
     }
@@ -475,6 +471,7 @@ bot.action("nigthly", (ctx) => {
         vigilant.food-=15;
         vigilant.energy-=15;
         vigilant.mental_health-=20;
+        vigilant.working = true;
         shelter.energetics-=15;
         ctx.telegram.sendMessage(ChatId, "There are: " + zombies.quantity - random_number(5, 15) + " zombies in the horde");
     }
@@ -492,6 +489,7 @@ bot.action("full", (ctx) => {
         vigilant.food-=20;
         vigilant.energy-=20;
         vigilant.mental_health-=30;
+        vigilant.working = true;
         shelter.energetics-=20;
         ctx.telegram.sendMessage(ChatId, "There are: " + zombies.quantity + " zombies in the horde");
     }
@@ -505,12 +503,12 @@ bot.action("full", (ctx) => {
 //--------------------------------------Explorer callbacks-----------------------------------------
 bot.action("eat-explorer", (ctx) => {
     ctx.deleteMessage();
-    explorer.eat(shelter);
+    explorer.eat(ctx, shelter, explorer);
 });
 
 bot.action("sleep-explorer", (ctx) => {
     ctx.deleteMessage();
-    explorer.sleep();
+    explorer.sleep(ctx, explorer);
 });
 
 bot.action("explore", (ctx) => {
@@ -538,6 +536,7 @@ bot.action("City", (ctx) => {
         builder.material+=70;
         explorer.food-=20;
         explorer.energy-=20;
+        explorer.working = true;
     }else{
         ctx.deleteMessage();
         ctx.telegram.sendMessage(explorer.id, "You don't have enough energy or food to this exploration, choose another or take a brake");
@@ -563,6 +562,7 @@ bot.action("countryside", (ctx) => {
         shelter.food+=60;
         explorer.food-=10;
         explorer.energy-=10;
+        explorer.working = true;
     }else{
         ctx.deleteMessage();
         ctx.telegram.sendMessage(explorer.id, "You don't have enough energy or food to this exploration, choose another or take a brake");
@@ -577,6 +577,7 @@ bot.action("surroundings", (ctx) =>{
         shelter.food+=10;
         explorer.food-=5;
         explorer.energy-=5;
+        explorer.working = true;
     }else{
         ctx.deleteMessage();
         ctx.telegram.sendMessage(explorer.id, "You don't have enough energy or food to this exploration, choose another or take a brake");
@@ -586,14 +587,14 @@ bot.action("surroundings", (ctx) =>{
 
 //---------------------------------------Traitor callbacks----------------------------------------
  //In case that choose food, edit hte message with the options
- bot.action("eat-explorer", (ctx) => {
+ bot.action("eat-traitor", (ctx) => {
     ctx.deleteMessage();
-    traitor.eat(shelter);
+    traitor.eat(ctx, shelter, traitor);
 });
 
 bot.action("sleep-traitor", (ctx) => {
     ctx.deleteMessage();
-    traitor.sleep();
+    traitor.sleep(ctx, traitor);
 });
 
 bot.action("work-traitor", (ctx) => {
@@ -603,7 +604,7 @@ bot.action("work-traitor", (ctx) => {
 
 bot.action("steal", (ctx) => {
     ctx.deleteMessage();
-    traitor.steal(ctx, id_group, shelter, leader, builder);
+    traitor.steal(ctx, ChatId, shelter, leader, builder);
 });
 
  bot.action("food", (ctx) => {
@@ -633,6 +634,7 @@ bot.action("big-food", (ctx) => {
         //Send a success message
         ctx.telegram.sendMessage(traitor.id, "¡Excellent!, made the perfect robbery, but be careful you will not always so lucky");
         shelter.food-= 60;
+        traitor.working = true;
     }
 });
 
@@ -649,6 +651,7 @@ bot.action("medium-food", (ctx) => {
     }else{
         ctx.telegram.sendMessage(traitor.id, "¡Excellent!, made the perfect robbery, but be careful you will not always so lucky");
         shelter.food-=30
+        traitor.working = true;
     }
 });
 
@@ -665,6 +668,7 @@ bot.action("small-food", (ctx) => {
     }else{
         ctx.telegram.sendMessage(traitor.id , "¡Excellent!, made the perfect robbery, but be careful you will not always so lucky");
         shelter.food-=15;
+        traitor.working = true;
     }
 });
 
@@ -690,7 +694,8 @@ bot.action("big-drinks", (ctx) => {
         traitor.life = 0;
     }else{
         ctx.telegram.sendMessage(traitor.id, "¡Excellent!, made the perfect robbery, but be careful you will not always so lucky");
-        shelter.energetics -= 20
+        shelter.energetics -= 20;
+        traitor.working = true;
     }
 });
 
@@ -705,7 +710,8 @@ bot.action("medium-drinks", (ctx) => {
         traitor.life = 0;
     }else{
         ctx.telegram.sendMessage(traitor.id, "¡Excellent!, made the perfect robbery, but be careful you will not always so lucky");
-        shelter.energetics-=10
+        shelter.energetics-=10;
+        traitor.working = true;
     }
 });
 
@@ -722,6 +728,7 @@ bot.action("small-drinks", (ctx) => {
     }else{
         ctx.telegram.sendMessage(traitor.id, "¡Excellent!, made the perfect robbery, but be careful you will not always so lucky");
         shelter.energetics-=5;
+        traitor.working = true;
     }
 });
 
@@ -748,6 +755,7 @@ bot.action("big-materials", (ctx) => {
     }else{
         ctx.telegram.sendMessage(traitor.id, "¡Excellent!, made the perfect robbery, but be careful you will not always so lucky");
         builder.material-= 20;
+        traitor.working = true;
     }
 });
 
@@ -763,6 +771,7 @@ bot.action("medium-material", (ctx) => {
     }else{
         ctx.telegram.sendMessage(traitor.id, "¡Excellent!, made the perfect robbery, but be careful you will not always so lucky");
         builder.material-=10;
+        traitor.working = true;
     }
 });
 
@@ -779,18 +788,19 @@ bot.action("small-materials", (ctx) => {
     }else{
         ctx.telegram.sendMessage(traitor.id, "¡Excellent!, made the perfect robbery, but be careful you will not always so lucky");
         builder.material-=5;
+        traitor.working = true;
     }
 });
 
 //---------------------------------------Refugee callbacks----------------------------------------
 bot.action("eat-refugee", (ctx) => {
     ctx.deleteMessage();
-    refugee.eat(shelter);
+    refugee.eat(ctx, shelter, refugee);
 });
 
 bot.action("sleep-explorer", (ctx) => {
     ctx.deleteMessage();
-    refugee.sleep();
+    refugee.sleep(ctx, refugee);
 });
 
 bot.action("work", (ctx) => {
